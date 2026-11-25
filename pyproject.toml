@@ -3,12 +3,48 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rql"
+name = "rql-python"
 version = "1.0.0"
-description = "Professional Python RQL (Resource Query Language) engine built with SOLID principles and GoF design patterns."
+description = "JQL-inspired Python Query Language (RQL) parser, validator, autocomplete, and dynamic query engine for SQLAlchemy 2.0 and in-memory collections."
 readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "altunga" }]
 requires-python = ">=3.11"
+keywords = [
+    "rql",
+    "jql",
+    "query-language",
+    "query-parser",
+    "dynamic-query",
+    "sqlalchemy",
+    "sqlalchemy-2",
+    "ast",
+    "filter",
+    "search-engine",
+    "autocomplete",
+    "python",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: General",
+    "Typing :: Typed",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/altunga/rql-python"
+Repository = "https://github.com/altunga/rql-python"
+Documentation = "https://github.com/altunga/rql-python/blob/main/docs/USAGE_GUIDE.md"
+"Bug Tracker" = "https://github.com/altunga/rql-python/issues"
 
 [project.optional-dependencies]
 sqlalchemy = ["sqlalchemy>=2.0"]
@@ -16,6 +52,9 @@ dev = ["pytest>=8.0", "mypy>=1.8", "sqlalchemy>=2.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+rql = ["py.typed"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]

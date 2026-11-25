@@ -1,30 +1,45 @@
-# RQL (`rql`)
+# rql-python — JQL-Inspired Query Language & Dynamic Filter Engine for Python and SQLAlchemy 2.0
 
-Python query engine for **RQL (Resource Query Language)**—a JQL-inspired query language for filtering, sorting, validating, and autocompleting structured records across in-memory Python collections and SQLAlchemy 2.0 ORM queries.
+[![CI](https://github.com/altunga/rql-python/actions/workflows/ci.yml/badge.svg)](https://github.com/altunga/rql-python/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![SQLAlchemy 2.0](https://img.shields.io/badge/SQLAlchemy-2.0-red.svg)](https://www.sqlalchemy.org/)
+[![Typed: mypy strict](https://img.shields.io/badge/typed-mypy%20strict-brightgreen.svg)](https://mypy-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-📘 **Full Usage Guide:** [docs/USAGE_GUIDE.md](docs/USAGE_GUIDE.md)
+**`rql-python`** is a fast, strictly typed **Python query language parser and dynamic query engine** inspired by **Jira Query Language (JQL)**. Write human-friendly search queries—complete with boolean logic, comparison operators, date functions, `IN`/`IS EMPTY` filters, and `ORDER BY`—and execute them directly against **SQLAlchemy 2.0** databases or **in-memory Python collections** (dataclasses, Pydantic models, plain objects).
+
+```sql
+project = "CRM" AND status IN ("Open", "In Progress") AND assignee = currentUser() AND created >= startOfDay("-7") ORDER BY priority ASC, votes DESC
+```
+
+📘 **[Read the Full Developer Usage Guide](docs/USAGE_GUIDE.md)** | 🚀 **[Explore the Runnable Showcase (`samples/main.py`)](samples/main.py)**
 
 ---
 
-## Features
+## Why Use `rql-python`?
 
-- **Complete RQL Grammar:** `AND`, `OR`, `NOT`, parentheses, `=`, `!=`, `<`, `<=`, `>`, `>=`, `~`, `!~`, `IN`, `NOT IN`, `IS EMPTY`, `IS NOT NULL`, `WAS`, `WAS IN`, `WAS NOT`, `WAS NOT IN`, `CHANGED`, function calls (`now()`, `startOfDay("-1")`, `membersOf("devs")`), and multi-column `ORDER BY`.
-- **In-Memory & SQLAlchemy 2.0 Execution:**
-  - **In-Memory (`InMemoryRqlExecutor`):** Zero-dependency filtering, sorting, and pagination over Python dataclasses, Pydantic models, or plain objects.
-  - **SQLAlchemy 2.0 (`SqlAlchemyRqlExecutor`):** Translates RQL queries directly into SQLAlchemy `Select` statements with foreign-key lookup optimization (`status = "Open"` $\rightarrow$ `issues.status_id = 1` without table joins) and `.any()` collection predicates.
-- **Dynamic Field Metadata (`FieldMetadataBuilder` & `DynamicEntityFieldAccessor`):** Register simple, lookup, collection, and computed fields with automatic property name extraction, `camelCase` conversion, `Id` suffix stripping, plural singularization (`Assignees` $\rightarrow$ `assignee`), and field aliases.
-- **Built-In Query Services:** Canonical query normalization (`RqlNormalizer`), syntax validation (`RqlValidationService`), schema inspection (`RqlMetadataService`), and prefix-based autocomplete (`RqlAutocompleteService`).
-- **Fully Typed:** Passes `mypy --strict` with zero errors.
+Building advanced search bars, REST API dynamic filtering (FastAPI / Flask / Django), or Jira-like issue filters usually requires writing brittle string parsers or exposing unsafe raw SQL. `rql-python` gives you a complete, safe, extensible search stack out of the box:
+
+- **Zero-Dependency Core:** Lexer, parser, AST, normalizer, validator, autocomplete, and in-memory execution require **no third-party runtime packages**.
+- **Native SQLAlchemy 2.0 Query Compilation:** Translates RQL directly into parameterized SQLAlchemy `Select` statements—avoiding SQL injection and eliminating unnecessary table joins via integer foreign-key lookup resolution (`status = "Open"` -> `issues.status_id = 1`).
+- **Frontend-Ready Services:** Includes syntax validation (`RqlValidationService`), canonical formatting (`RqlNormalizer`), schema inspection (`RqlMetadataService`), and prefix-based autocomplete (`RqlAutocompleteService`) for building interactive search inputs.
+- **Full JQL-Style Grammar:** Supports `AND`, `OR`, `NOT`, parentheses `(...)`, `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `!~`, `IN`, `NOT IN`, `IS EMPTY`, `IS NOT NULL`, `WAS`, `WAS IN`, `WAS NOT`, `WAS NOT IN`, `CHANGED`, built-in & custom functions (`now()`, `startOfDay("-1")`, `membersOf("team")`, `currentUser()`), and multi-column `ORDER BY`.
+- **100% Strictly Typed (PEP 561):** Ships with `py.typed` and passes `mypy --strict` with zero errors.
 
 ---
 
 ## Installation
 
 ```bash
-# Core package (zero runtime dependencies)
-pip install -e .
+# Core package (zero runtime dependencies — in-memory execution, parser, validator, autocomplete)
+pip install git+https://github.com/altunga/rql-python.git
 
-# With SQLAlchemy 2.0 support & development tools
+# With SQLAlchemy 2.0 support
+pip install "rql-python[sqlalchemy] @ git+https://github.com/altunga/rql-python.git"
+
+# Local development install
+git clone https://github.com/altunga/rql-python.git
+cd rql-python
 pip install -e ".[sqlalchemy,dev]"
 ```
 
@@ -37,9 +52,9 @@ pip install -e ".[sqlalchemy,dev]"
 ```python
 from rql import (
     RqlAutocompleteService,
+    RqlField,
     RqlMetadata,
     RqlNormalizer,
-    RqlParser,
     RqlValidationService,
 )
 
@@ -50,11 +65,20 @@ res = validator.validate("Project = 'CRM' and Status in ('Open', 'In Progress') 
 print(res.valid)           # True
 print(res.normalized_rql)  # (project = "CRM" AND status IN ("Open", "In Progress")) ORDER BY created DESC
 
-autocomplete = RqlAutocompleteService(RqlMetadata())
+metadata = RqlMetadata(
+    fields=[
+        RqlField("project", "text", ["CRM", "SUP", "DEV"]),
+        RqlField("priority", "text", ["Critical", "High", "Medium", "Low"]),
+        RqlField("created", "date", []),
+    ]
+)
+autocomplete = RqlAutocompleteService(metadata)
 print(autocomplete.get_suggestions(field="priority", query="hi").suggestions)  # ['High']
+print(autocomplete.get_suggestions(field="created", query="startOf").suggestions)
+# ['startOfDay()', 'startOfWeek()', 'startOfMonth()', 'startOfYear()']
 ```
 
-### 2. Filter & Sort Records (`RqlEngine`)
+### 2. Dynamic Filtering on In-Memory Python Objects (`RqlEngine`)
 
 ```python
 from dataclasses import dataclass
@@ -111,13 +135,48 @@ issues = [
 matched = engine.execute(issues, 'project = "CRM" AND status = "Open" AND votes >= 5')
 ```
 
-See [docs/USAGE_GUIDE.md](docs/USAGE_GUIDE.md) for complete examples including collection fields, computed fields, SQLAlchemy 2.0 integration, pagination (`PagedResult`), and custom functions.
+### 3. Dynamic SQL Queries with SQLAlchemy 2.0
+
+```python
+from sqlalchemy import select
+from rql import BuiltInRqlFunctionResolver, RqlParser
+from rql.backends.sqlalchemy import SqlAlchemyRqlExecutor
+
+executor = SqlAlchemyRqlExecutor(
+    field_accessors=[sql_accessor],
+    function_resolvers=[BuiltInRqlFunctionResolver()],
+    collection_accessor=sql_accessor,
+    lookup_resolver=lookup_resolver,
+    lookup_field_accessor=sql_accessor,
+)
+
+stmt = executor.execute(
+    select(IssueModel),
+    RqlParser.parse('project = "CRM" AND status = "Open" ORDER BY votes DESC'),
+)
+rows = session.scalars(stmt).all()
+```
+
+See **[docs/USAGE_GUIDE.md](docs/USAGE_GUIDE.md)** and **[samples/main.py](samples/main.py)** for complete runnable examples covering collection fields, computed fields, custom functions, custom target compilers, and pagination (`PagedResult`).
 
 ---
 
-## Running Tests & Type Checks
+## Running Samples, Tests & Type Checks
 
 ```bash
+# Run the complete end-to-end sample application
+python -m samples.main
+
+# Run unit and integration test suite
 pytest -v
-mypy --strict src tests
+
+# Run strict static type checking
+mypy --strict src tests samples
 ```
+
+---
+
+## Contributing & License
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Released under the [MIT License](LICENSE).
