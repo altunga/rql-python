@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rql"
+version = "1.0.0"
+description = "Professional Python RQL (Resource Query Language) engine built with SOLID principles and GoF design patterns."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+sqlalchemy = ["sqlalchemy>=2.0"]
+dev = ["pytest>=8.0", "mypy>=1.8", "sqlalchemy>=2.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = ["src", "."]
+packages = ["rql", "tests", "samples"]
